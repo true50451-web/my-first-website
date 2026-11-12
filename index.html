@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <title>A-Frame 3D 互動房間範例</title>
+  <!-- 引入 A-Frame 程式庫 -->
+  <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+  
+  <script>
+    // 自定義一個點擊互動元件：當點擊物件時，隨機改變顏色
+    AFRAME.registerComponent('click-handler', {
+      init: function () {
+        const el = this.el;
+        el.addEventListener('click', function () {
+          const colors = ['#EF4444', '#3B82F6', '#10B981', '#F59E0B', '#8B5CF6'];
+          const randomColor = colors[Math.floor(Math.random() * colors.length)];
+          el.setAttribute('material', 'color', randomColor);
+        });
+      }
+    });
+  </script>
+</head>
+<body>
+  <a-scene>
+    <!-- 攝影機與視角控制：內建 WASD / 方向鍵移動，滑鼠拖曳轉動視角 -->
+    <a-entity position="0 1.6 3">
+      <a-camera look-controls wasd-controls>
+        <!-- 畫布正中央的準心游標，用於點擊具有 .interactive 標籤的物件 -->
+        <a-cursor raycaster="objects: .interactive" fuse="false"></a-cursor>
+      </a-camera>
+    </a-entity>
+
+    <!-- 環境燈光 -->
+    <a-light type="ambient" color="#FFFFFF" intensity="0.7"></a-light>
+    <a-light type="directional" color="#FFFFFF" intensity="0.8" position="-1 2 1"></a-light>
+
+    <!-- 地板 -->
+    <a-plane position="0 0 0" rotation="-90 0 0" width="10" height="10" color="#E5E7EB"></a-plane>
+
+    <!-- 四面牆壁 -->
+    <!-- 後牆 -->
+    <a-box position="0 2.5 -5" width="10" height="5" depth="0.2" color="#9CA3AF"></a-box>
+    <!-- 前牆 -->
+    <a-box position="0 2.5 5" width="10" height="5" depth="0.2" color="#9CA3AF"></a-box>
+    <!-- 左牆 -->
+    <a-box position="-5 2.5 0" width="0.2" height="5" depth="10" color="#9CA3AF"></a-box>
+    <!-- 右牆 -->
+    <a-box position="5 2.5 0" width="0.2" height="5" depth="10" color="#9CA3AF"></a-box>
+
+    <!-- 可點擊互動的 3D 方塊（加上了 .interactive 類別與自定義點擊事件） -->
+    <a-box class="interactive" 
+           position="0 1 -2" 
+           rotation="0 45 0" 
+           color="#3B82F6" 
+           click-handler 
+           animation="property: rotation; to: 0 405 0; loop: true; dur: 5000; easing: linear">
+    </a-box>
+    
+    <!-- 3D 天空背景顏色 -->
+    <a-sky color="#1F2937"></a-sky>
+  </a-scene>
+</body>
+</html>
