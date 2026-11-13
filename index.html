@@ -1,63 +1,387 @@
 <!DOCTYPE html>
-<html lang="zh-Hant">
+<html lang="zh-TW">
 <head>
-  <meta charset="UTF-8">
-  <title>A-Frame 3D 互動房間範例</title>
-  <!-- 引入 A-Frame 程式庫 -->
-  <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
-  
-  <script>
-    // 自定義一個點擊互動元件：當點擊物件時，隨機改變顏色
-    AFRAME.registerComponent('click-handler', {
-      init: function () {
-        const el = this.el;
-        el.addEventListener('click', function () {
-          const colors = ['#EF4444', '#3B82F6', '#10B981', '#F59E0B', '#8B5CF6'];
-          const randomColor = colors[Math.floor(Math.random() * colors.length)];
-          el.setAttribute('material', 'color', randomColor);
-        });
-      }
-    });
-  </script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>社交情境模擬器 - 滿版大字版</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .emotion-btn {
+            transition: all 0.2s;
+        }
+        .emotion-btn:active {
+            transform: scale(0.95);
+        }
+        .selected {
+            outline: 5px solid #3b82f6;
+            transform: scale(1.05);
+            background-color: #dbeafe !important;
+        }
+        /* 圖片格容器高度再次放大至 60vh */
+        .scenario-image-container {
+            height: 60vh;
+            background-color: #f3f4f6;
+            border-radius: 1.5rem;
+            overflow: hidden;
+            position: relative;
+        }
+        /* 圖片延展至填滿 */
+        .scenario-image-content {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .fade-in {
+            animation: fadeIn 0.5s ease-out;
+        }
+        .sparkle-btn {
+            background: linear-gradient(45deg, #3b82f6, #8b5cf6);
+            color: white;
+        }
+        .hide-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .hide-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
 </head>
-<body>
-  <a-scene>
-    <!-- 攝影機與視角控制：內建 WASD / 方向鍵移動，滑鼠拖曳轉動視角 -->
-    <a-entity position="0 1.6 3">
-      <a-camera look-controls wasd-controls>
-        <!-- 畫布正中央的準心游標，用於點擊具有 .interactive 標籤的物件 -->
-        <a-cursor raycaster="objects: .interactive" fuse="false"></a-cursor>
-      </a-camera>
-    </a-entity>
+<body class="bg-blue-50 h-screen overflow-hidden font-sans">
 
-    <!-- 環境燈光 -->
-    <a-light type="ambient" color="#FFFFFF" intensity="0.7"></a-light>
-    <a-light type="directional" color="#FFFFFF" intensity="0.8" position="-1 2 1"></a-light>
+    <div class="h-full flex flex-col">
+        <!-- 頂部標題區 -->
+        <header class="bg-blue-600 p-2 text-white text-center shadow-md shrink-0">
+            <h1 class="text-xl font-bold tracking-wider">我的社交情境練習簿</h1>
+        </header>
 
-    <!-- 地板 -->
-    <a-plane position="0 0 0" rotation="-90 0 0" width="10" height="10" color="#E5E7EB"></a-plane>
+        <!-- 主內容區 -->
+        <main class="flex-1 flex flex-col md:flex-row overflow-hidden">
+            
+            <!-- 左側：情境顯示區 (放大圖片) -->
+            <section class="w-full md:w-1/2 p-4 flex flex-col border-b md:border-b-0 md:border-r border-gray-200 bg-white overflow-hidden">
+                <div class="flex justify-between items-center mb-2 shrink-0">
+                    <h2 class="text-lg font-bold text-gray-700">當前情境：</h2>
+                    <div class="flex items-center gap-2">
+                         <button onclick="speakScenario()" class="p-2 bg-gray-100 rounded-full hover:bg-gray-200 text-xl" title="語音導讀">🔊</button>
+                        <span id="scenario-counter" class="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-md font-semibold">1 / 20</span>
+                    </div>
+                </div>
+                
+                <!-- 再次放大的圖片區 -->
+                <div id="image-container" class="scenario-image-container border-4 border-dashed border-gray-100 mb-3 shrink-0">
+                    <div id="image-loading" class="hidden absolute inset-0 bg-white bg-opacity-80 flex flex-col items-center justify-center z-10">
+                        <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mb-2"></div>
+                        <p class="text-blue-600 font-bold italic">✨ 畫圖中...</p>
+                    </div>
+                    <img id="scenario-img" src="" alt="情境插圖" class="scenario-image-content">
+                </div>
 
-    <!-- 四面牆壁 -->
-    <!-- 後牆 -->
-    <a-box position="0 2.5 -5" width="10" height="5" depth="0.2" color="#9CA3AF"></a-box>
-    <!-- 前牆 -->
-    <a-box position="0 2.5 5" width="10" height="5" depth="0.2" color="#9CA3AF"></a-box>
-    <!-- 左牆 -->
-    <a-box position="-5 2.5 0" width="0.2" height="5" depth="10" color="#9CA3AF"></a-box>
-    <!-- 右牆 -->
-    <a-box position="5 2.5 0" width="0.2" height="5" depth="10" color="#9CA3AF"></a-box>
+                <!-- 最小化高度的文字敘述欄 -->
+                <div class="bg-yellow-50 px-5 py-2 rounded-2xl border-4 border-yellow-200 shadow-sm h-fit shrink-0 mb-3 flex items-center justify-center overflow-hidden">
+                    <p id="scenario-text" class="text-2xl font-extrabold text-gray-800 text-center leading-tight">
+                        載入中...
+                    </p>
+                </div>
 
-    <!-- 可點擊互動的 3D 方塊（加上了 .interactive 類別與自定義點擊事件） -->
-    <a-box class="interactive" 
-           position="0 1 -2" 
-           rotation="0 45 0" 
-           color="#3B82F6" 
-           click-handler 
-           animation="property: rotation; to: 0 405 0; loop: true; dur: 5000; easing: linear">
-    </a-box>
-    
-    <!-- 3D 天空背景顏色 -->
-    <a-sky color="#1F2937"></a-sky>
-  </a-scene>
+                <!-- 按鈕導航區 -->
+                <div class="flex flex-wrap gap-2 justify-center shrink-0 mb-2">
+                    <button onclick="prevScenario()" class="px-5 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-full text-md font-bold transition">上一個</button>
+                    <button onclick="nextScenario()" class="px-5 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-full text-md font-bold transition shadow-md">換場景</button>
+                    <button onclick="generateAIScenario()" class="px-5 py-2 sparkle-btn rounded-full text-md font-bold transition shadow-md">✨ AI 生成</button>
+                </div>
+            </section>
+
+            <!-- 右側：操作互動區 (保持滿版) -->
+            <section class="w-full md:w-1/2 p-4 flex flex-col space-y-4 overflow-y-auto hide-scrollbar bg-blue-50/30">
+                
+                <!-- 心情區 -->
+                <div class="bg-white p-4 rounded-2xl shadow-sm border border-blue-100 shrink-0">
+                    <div class="space-y-3">
+                        <h3 class="text-lg font-bold text-blue-800 flex items-center">
+                            <span class="mr-2 text-2xl">🙋‍♂️</span> 我的心情？
+                        </h3>
+                        <div id="my-emotions" class="grid grid-cols-3 sm:grid-cols-6 gap-2">
+                            <!-- JS 填充 -->
+                        </div>
+                    </div>
+
+                    <div class="space-y-3 mt-4">
+                        <h3 class="text-lg font-bold text-green-800 flex items-center">
+                            <span class="mr-2 text-2xl">👤</span> 他人的心情？
+                        </h3>
+                        <div id="others-emotions" class="grid grid-cols-3 sm:grid-cols-6 gap-2">
+                            <!-- JS 填充 -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 處遇方法區 -->
+                <div class="bg-white p-4 rounded-2xl shadow-sm border border-gray-200 shrink-0">
+                    <h3 class="text-lg font-bold text-gray-800 flex items-center mb-3">
+                        <span class="mr-2 text-2xl">💡</span> 我可以怎麼做？
+                    </h3>
+                    <div id="actions-grid" class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <!-- JS 填充 -->
+                    </div>
+                </div>
+
+                <!-- 結果回饋 -->
+                <div id="feedback-area" class="hidden fade-in p-4 rounded-2xl border-4 text-center space-y-3 shrink-0">
+                    <p id="feedback-text" class="text-xl font-bold text-gray-800"></p>
+                    
+                    <div class="flex justify-center gap-4 items-center">
+                        <button id="ai-suggestion-btn" onclick="getAISuggestion()" class="px-6 py-2 bg-white border-2 border-purple-300 text-purple-700 rounded-xl text-md font-bold hover:bg-purple-50 transition shadow-sm">
+                            ✨ 詢問 AI 建議
+                        </button>
+                        <button onclick="resetSelection()" class="text-sm text-gray-500 underline">重新選擇</button>
+                    </div>
+
+                    <div id="ai-response" class="hidden text-left bg-white p-4 rounded-xl border border-purple-100 text-gray-700 text-md leading-relaxed shadow-inner">
+                        <!-- AI 建議 -->
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script>
+        const apiKey = ""; 
+
+        const scenarios = [
+            "玩具被同學搶走", "排隊時被後面的同學推了一下", "想玩球但同學不讓你加入", 
+            "午餐吃到不喜歡的菜", "上課想發言但老師沒叫到你", "考試成績不如預期", 
+            "同學不小心把水灑在你的課本上", "體育課分組沒有人找你一組", "被誤會弄壞了別人的東西",
+            "在走廊行走時被同學撞倒", "聽不懂老師上課講的內容", "想跟同學借彩色筆被拒絕",
+            "玩遊戲輸了心情很差", "下課時間想安靜卻有人在旁邊大叫", "同學在背後說你的壞話",
+            "媽媽忘記帶你最喜歡的點心", "不小心弄髒了剛穿好的衣服", "看電視正精彩時被叫去寫功課",
+            "在路上遇到不認識的狗對你叫", "要把喜歡的玩具分享給弟弟妹妹"
+        ];
+
+        const emotions = [
+            { name: "高興", emoji: "😊", color: "bg-green-50 border-green-200 text-green-600" },
+            { name: "生氣", emoji: "😡", color: "bg-red-50 border-red-200 text-red-600" },
+            { name: "難過", emoji: "😢", color: "bg-blue-50 border-blue-200 text-blue-600" },
+            { name: "害怕", emoji: "😨", color: "bg-purple-50 border-purple-200 text-purple-600" },
+            { name: "驚訝", emoji: "😮", color: "bg-yellow-50 border-yellow-200 text-yellow-600" },
+            { name: "冷靜", emoji: "😐", color: "bg-gray-50 border-gray-200 text-gray-600" }
+        ];
+
+        const actions = [
+            { text: "找老師尋求幫助", positive: true, note: "這是一個很棒的做法，老師可以幫你解決。" },
+            { text: "自己先忍耐住情緒", positive: true, note: "試著深呼吸三口氣，讓心情平復一點。" },
+            { text: "用說的告訴對方我的感受", positive: true, note: "勇敢說出『我不喜歡你這樣』是很棒的溝通。" },
+            { text: "離開現場去冷靜", positive: true, note: "換個環境呼吸一下，心情會變好喔。" },
+            { text: "大聲尖叫或是推人", positive: false, note: "這樣可能會讓事情變糟，也容易讓別人受傷。" },
+            { text: "把東西摔在地上", positive: false, note: "弄壞東西還是要解決問題，不如深呼吸？" }
+        ];
+
+        let currentIndex = 0;
+        let selectedMyEmotion = null;
+        let selectedOtherEmotion = null;
+        let selectedAction = null;
+
+        async function fetchWithRetry(url, options, retries = 5) {
+            for (let i = 0; i < retries; i++) {
+                try {
+                    const response = await fetch(url, options);
+                    if (response.ok) return await response.json();
+                    if (response.status === 429) {
+                        await new Promise(res => setTimeout(res, Math.pow(2, i) * 1000));
+                        continue;
+                    }
+                    const errData = await response.json();
+                    throw new Error(errData.error?.message || "API 請求失敗");
+                } catch (e) {
+                    if (i === retries - 1) throw e;
+                    await new Promise(res => setTimeout(res, Math.pow(2, i) * 1000));
+                }
+            }
+        }
+
+        async function generateAIScenario() {
+            const btn = event.currentTarget;
+            btn.innerText = "...";
+            btn.disabled = true;
+            try {
+                const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+                const result = await fetchWithRetry(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: [{ parts: [{ text: "請給我一個新的社交挑戰情境。" }] }],
+                        systemInstruction: { parts: [{ text: "生成一個適合情緒障礙生練習社交技巧的簡短情境，20字內。" }] }
+                    })
+                });
+                const newText = result.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+                if (newText) {
+                    scenarios.push(newText);
+                    currentIndex = scenarios.length - 1;
+                    updateUI();
+                }
+            } catch (e) { console.error(e); } finally {
+                btn.innerText = "✨ AI 生成";
+                btn.disabled = false;
+            }
+        }
+
+        async function getAISuggestion() {
+            const aiResDiv = document.getElementById('ai-response');
+            const aiBtn = document.getElementById('ai-suggestion-btn');
+            aiResDiv.classList.remove('hidden');
+            aiResDiv.innerHTML = "老師正在想建議...";
+            aiBtn.disabled = true;
+
+            const prompt = `情境：${scenarios[currentIndex]}。心情：${selectedMyEmotion}。做法：${selectedAction}。請以溫柔的老師口吻給予40字內建議。`;
+            try {
+                const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+                const result = await fetchWithRetry(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+                });
+                aiResDiv.innerHTML = `<strong>✨ 老師的話：</strong><br>${result.candidates[0].content.parts[0].text}`;
+            } catch (e) { aiResDiv.innerText = "連線失敗。"; } finally { aiBtn.disabled = false; }
+        }
+
+        async function speakScenario() {
+            const text = document.getElementById('scenario-text').innerText;
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${apiKey}`;
+            try {
+                const response = await fetchWithRetry(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: [{ parts: [{ text: `Say warmly: ${text}` }] }],
+                        generationConfig: {
+                            responseModalities: ["AUDIO"],
+                            speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: "Kore" } } }
+                        }
+                    })
+                });
+                const base64Audio = response.candidates?.[0]?.content?.parts?.find(p => p.inlineData)?.inlineData?.data;
+                if (base64Audio) {
+                    const audioBlob = pcmToWav(base64Audio, 24000);
+                    const audio = new Audio(URL.createObjectURL(audioBlob));
+                    audio.play();
+                }
+            } catch (e) {
+                const msg = new SpeechSynthesisUtterance(text);
+                msg.lang = 'zh-TW';
+                window.speechSynthesis.speak(msg);
+            }
+        }
+
+        function pcmToWav(base64Data, sampleRate) {
+            const byteCharacters = atob(base64Data);
+            const buffer = new ArrayBuffer(44 + byteCharacters.length);
+            const view = new DataView(buffer);
+            const writeString = (o, s) => { for (let i=0; i<s.length; i++) view.setUint8(o+i, s.charCodeAt(i)); };
+            writeString(0, 'RIFF');
+            view.setUint32(4, 36 + byteCharacters.length, true);
+            writeString(8, 'WAVE');
+            writeString(12, 'fmt ');
+            view.setUint32(16, 16, true);
+            view.setUint16(20, 1, true);
+            view.setUint16(22, 1, true);
+            view.setUint32(24, sampleRate, true);
+            view.setUint32(28, sampleRate * 2, true);
+            view.setUint16(32, 2, true);
+            view.setUint16(34, 16, true);
+            writeString(36, 'data');
+            view.setUint32(40, byteCharacters.length, true);
+            for (let i=0; i<byteCharacters.length; i++) view.setUint8(44+i, byteCharacters.charCodeAt(i));
+            return new Blob([view], { type: 'audio/wav' });
+        }
+
+        async function generateScenarioImage(promptText) {
+            const loadingEl = document.getElementById('image-loading');
+            const imgEl = document.getElementById('scenario-img');
+            loadingEl.classList.remove('hidden');
+            imgEl.style.opacity = '0.3';
+            try {
+                const url = `https://generativelanguage.googleapis.com/v1beta/models/imagen-4.0-generate-001:predict?key=${apiKey}`;
+                const result = await fetchWithRetry(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        instances: { prompt: `Simple 2D cartoon, child-friendly, showing: ${promptText}.` },
+                        parameters: { sampleCount: 1 }
+                    })
+                });
+                if (result.predictions?.[0]) imgEl.src = `data:image/png;base64,${result.predictions[0].bytesBase64Encoded}`;
+            } catch (error) { imgEl.src = `https://via.placeholder.com/800x800?text=Scenario`; } finally {
+                loadingEl.classList.add('hidden');
+                imgEl.style.opacity = '1';
+            }
+        }
+
+        function updateUI() {
+            const text = scenarios[currentIndex];
+            document.getElementById('scenario-text').innerText = text;
+            document.getElementById('scenario-counter').innerText = `${currentIndex + 1} / ${scenarios.length}`;
+            resetSelection();
+            generateScenarioImage(text);
+        }
+
+        function renderEmotions() {
+            ['my-emotions', 'others-emotions'].forEach(id => {
+                const container = document.getElementById(id);
+                container.innerHTML = '';
+                emotions.forEach(emo => {
+                    const btn = document.createElement('button');
+                    btn.className = `emotion-btn border-2 p-1 rounded-xl flex flex-col items-center shadow-sm ${emo.color}`;
+                    btn.innerHTML = `<span class="text-3xl mb-1">${emo.emoji}</span><span class="text-md font-bold">${emo.name}</span>`;
+                    btn.onclick = () => {
+                        Array.from(container.children).forEach(b => b.classList.remove('selected'));
+                        btn.classList.add('selected');
+                        if(id.startsWith('my')) selectedMyEmotion = emo.name; else selectedOtherEmotion = emo.name;
+                    };
+                    container.appendChild(btn);
+                });
+            });
+        }
+
+        function renderActions() {
+            const container = document.getElementById('actions-grid');
+            container.innerHTML = '';
+            actions.forEach(action => {
+                const btn = document.createElement('button');
+                btn.className = "action-btn text-left p-3 border-4 border-gray-100 rounded-xl hover:bg-gray-50 transition text-lg font-bold text-gray-700 shadow-sm";
+                btn.innerText = action.text;
+                btn.onclick = () => {
+                    Array.from(container.children).forEach(b => b.classList.remove('selected', 'bg-blue-50', 'border-blue-400'));
+                    btn.classList.add('selected', 'bg-blue-50', 'border-blue-400');
+                    selectedAction = action.text;
+                    showFeedback(action);
+                };
+                container.appendChild(btn);
+            });
+        }
+
+        function showFeedback(action) {
+            const feedbackArea = document.getElementById('feedback-area');
+            feedbackArea.classList.remove('hidden');
+            document.getElementById('ai-response').classList.add('hidden');
+            document.getElementById('feedback-text').innerText = (action.positive ? "🌟 " : "💡 ") + action.note;
+            feedbackArea.className = `fade-in p-4 rounded-2xl border-4 text-center space-y-3 ${action.positive ? 'bg-green-50 border-green-300' : 'bg-orange-50 border-orange-300'}`;
+        }
+
+        function resetSelection() {
+            document.querySelectorAll('.emotion-btn, .action-btn').forEach(b => b.classList.remove('selected', 'bg-blue-50', 'border-blue-400'));
+            document.getElementById('feedback-area').classList.add('hidden');
+            document.getElementById('ai-response').classList.add('hidden');
+            selectedMyEmotion = null; selectedOtherEmotion = null; selectedAction = null;
+        }
+
+        function nextScenario() { currentIndex = (currentIndex + 1) % scenarios.length; updateUI(); }
+        function prevScenario() { currentIndex = (currentIndex - 1 + scenarios.length) % scenarios.length; updateUI(); }
+
+        window.onload = () => { renderEmotions(); renderActions(); updateUI(); };
+    </script>
 </body>
 </html>
